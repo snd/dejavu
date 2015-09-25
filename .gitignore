@@ -5,3 +5,8 @@ mp3
 *.mp3
 .DS_Store
 *.cnf
+man/
+lib/
+include/
+bin/
+.Python
