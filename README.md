@@ -1,6 +1,8 @@
 dejavu
 ==========
 
+**[updated installation and usage instructions for mac osx using python 3](installation-and-usage.md)**
+
 Audio fingerprinting and recognition algorithm implemented in Python, see the explanation here:  
 [How it works](http://willdrevo.com/fingerprinting-and-audio-recognition-with-python.html)
 
