@@ -3,9 +3,12 @@ import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import maximum_filter
 from scipy.ndimage.morphology import (generate_binary_structure,
-                                      iterate_structure, binary_erosion)
+                                      iterate_structure,
+                                      binary_erosion,
+                                      grey_dilation)
 import hashlib
 from operator import itemgetter
+from dejavu.timer import Timer
 
 IDX_FREQ_I = 0
 IDX_TIME_J = 1
@@ -71,22 +74,27 @@ def fingerprint(channel_samples, Fs=DEFAULT_FS,
     locally sensitive hashes.
     """
     # FFT the signal and extract frequency components
-    arr2D = mlab.specgram(
-        channel_samples,
-        NFFT=wsize,
-        Fs=Fs,
-        window=mlab.window_hanning,
-        noverlap=int(wsize * wratio))[0]
+    with Timer("mlab.specgram") as t:
+        arr2D = mlab.specgram(
+            channel_samples,
+            NFFT=wsize,
+            Fs=Fs,
+            window=mlab.window_hanning,
+            noverlap=int(wsize * wratio))[0]
 
     # apply log transform since specgram() returns linear array
     arr2D = 10 * np.log10(arr2D)
     arr2D[arr2D == -np.inf] = 0  # replace infs with zeros
 
     # find local maxima
-    local_maxima = get_2D_peaks(arr2D, plot=False, amp_min=amp_min)
+    with Timer("get_2D_peaks") as t:
+        local_maxima = get_2D_peaks(arr2D, plot=False, amp_min=amp_min)
+
+    with Timer("hashes") as t:
+        hashes = generate_hashes(local_maxima, fan_value=fan_value)
 
     # return hashes
-    return generate_hashes(local_maxima, fan_value=fan_value)
+    return hashes
 
 
 def get_2D_peaks(arr2D, plot=False, amp_min=DEFAULT_AMP_MIN):
@@ -95,7 +103,9 @@ def get_2D_peaks(arr2D, plot=False, amp_min=DEFAULT_AMP_MIN):
     neighborhood = iterate_structure(struct, PEAK_NEIGHBORHOOD_SIZE)
 
     # find local maxima using our fliter shape
-    local_max = maximum_filter(arr2D, footprint=neighborhood) == arr2D
+    with Timer("maximum_filter") as t:
+        # local_max = grey_dilation(arr2D, footprint=neighborhood) == arr2D
+        local_max = maximum_filter(arr2D, footprint=neighborhood) == arr2D
     background = (arr2D == 0)
     eroded_background = binary_erosion(background, structure=neighborhood,
                                        border_value=1)

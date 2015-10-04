@@ -2,8 +2,7 @@ import dejavu.fingerprint as fingerprint
 import dejavu.decoder as decoder
 import numpy as np
 import pyaudio
-import time
-
+from dejavu.timer import Timer
 
 class BaseRecognizer(object):
 
@@ -14,8 +13,11 @@ class BaseRecognizer(object):
     def _recognize(self, *data):
         matches = []
         for d in data:
-            matches.extend(self.dejavu.find_matches(d, Fs=self.Fs))
-        return self.dejavu.align_matches(matches)
+            with Timer("find_matches") as t:
+                matches.extend(self.dejavu.find_matches(d, Fs=self.Fs))
+        with Timer("align_matches") as t:
+            aligned = self.dejavu.align_matches(matches)
+        return aligned
 
     def recognize(self):
         pass  # base class does nothing
@@ -26,14 +28,14 @@ class FileRecognizer(BaseRecognizer):
         super(FileRecognizer, self).__init__(dejavu)
 
     def recognize_file(self, filename):
-        frames, self.Fs, file_hash = decoder.read(filename, self.dejavu.limit)
+        with Timer("decorder.read") as t:
+            frames, self.Fs, file_hash = decoder.read(filename, self.dejavu.limit)
 
-        t = time.time()
-        match = self._recognize(*frames)
-        t = time.time() - t
+        with Timer() as t:
+            match = self._recognize(*frames)
 
         if match:
-            match['match_time'] = t
+            match['match_time'] = t.ms
 
         return match
 
